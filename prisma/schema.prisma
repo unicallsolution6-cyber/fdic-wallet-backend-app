@@ -1,0 +1,147 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  APPROVED
+  REVIEW
+  PENDING
+  CANCELED
+  INACTIVE
+  SUSPENDED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER
+}
+
+enum TransactionStatus {
+  APPROVED
+  REVIEW
+  PENDING
+  CANCELLED
+}
+
+enum WithdrawalMethod {
+  BANK
+  PAYPAL
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocumentType {
+  DRIVING_LICENSE_FRONT
+  DRIVING_LICENSE_BACK
+  PASSPORT
+  ID_CARD
+  OTHER
+}
+
+enum WithdrawalTiming {
+  HOURS_24
+  DAYS_3
+  DAYS_7
+  DAYS_10
+}
+
+model Admin {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  name              String
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model User {
+  id                    String        @id @default(uuid())
+  email                 String        @unique
+  password              String
+  firstName             String
+  lastName              String
+  status                UserStatus    @default(PENDING)
+  balance               Float         @default(0)
+  accountNumber         String?
+  routingNumber         String?
+  withdrawalTiming      WithdrawalTiming?
+  helplineNumber        String?
+  isEmailVerified       Boolean       @default(true)
+  emailVerificationToken String?
+  emailVerificationExpiry DateTime?
+  resetToken            String?
+  resetTokenExpiry      DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  transactions          Transaction[]
+  documents             Document[]
+
+  @@map("users")
+}
+
+model Transaction {
+  id              String            @id @default(uuid())
+  userId          String
+  type            TransactionType
+  amount          Float
+  status          TransactionStatus @default(PENDING)
+  withdrawalMethod WithdrawalMethod?
+  withdrawalTiming WithdrawalTiming?
+  estimatedCompletion DateTime?
+  description     String?
+  balanceBefore   Float
+  balanceAfter    Float
+  metadata        Json?             // For storing additional info like bank details, paypal email, etc.
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+model Document {
+  id              String          @id @default(uuid())
+  userId          String
+  documentType    DocumentType    @default(OTHER)
+  fileName        String
+  fileUrl         String
+  fileType        String
+  fileSize        Int
+  status          DocumentStatus  @default(PENDING)
+  rejectionReason String?
+  uploadedAt      DateTime        @default(now())
+  reviewedAt      DateTime?
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("documents")
+}

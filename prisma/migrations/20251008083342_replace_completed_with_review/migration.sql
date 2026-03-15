@@ -1,0 +1,22 @@
+-- Step 1: Drop the default value temporarily
+ALTER TABLE "transactions" ALTER COLUMN "status" DROP DEFAULT;
+
+-- Step 2: Create new enum with all desired values
+CREATE TYPE "TransactionStatus_new" AS ENUM ('PENDING', 'REVIEW', 'FAILED', 'CANCELLED');
+
+-- Step 3: Update transactions table to use new enum, converting COMPLETED to REVIEW
+ALTER TABLE "transactions"
+  ALTER COLUMN "status" TYPE "TransactionStatus_new"
+  USING (
+    CASE
+      WHEN status::text = 'COMPLETED' THEN 'REVIEW'::text
+      ELSE status::text
+    END
+  )::"TransactionStatus_new";
+
+-- Step 4: Drop old enum and rename new one
+DROP TYPE "TransactionStatus";
+ALTER TYPE "TransactionStatus_new" RENAME TO "TransactionStatus";
+
+-- Step 5: Restore the default value
+ALTER TABLE "transactions" ALTER COLUMN "status" SET DEFAULT 'PENDING'::"TransactionStatus";
