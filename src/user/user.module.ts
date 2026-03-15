@@ -1,18 +1,29 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import { tmpdir } from 'os';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { PrismaService } from '../config/prisma.service';
 import { EmailModule } from '../email/email.module';
+
+// Use /tmp on serverless (Vercel), ./uploads locally
+const uploadDir = process.env.NODE_ENV === 'production'
+  ? join(tmpdir(), 'uploads')
+  : './uploads';
+
+if (!existsSync(uploadDir)) {
+  mkdirSync(uploadDir, { recursive: true });
+}
 
 @Module({
   imports: [
     EmailModule,
     MulterModule.register({
       storage: diskStorage({
-        destination: './uploads',
+        destination: uploadDir,
         filename: (req, file, cb) => {
           const randomName = Array(32)
             .fill(null)
