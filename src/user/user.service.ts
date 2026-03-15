@@ -1,14 +1,17 @@
 import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../config/prisma.service';
 import { EmailService } from '../email/email.service';
+import { SupabaseService } from '../config/supabase.service';
 import { hashPassword, comparePassword, generateResetToken } from '../utils/password.util';
 import { generateToken } from '../utils/jwt.util';
+import { extname } from 'path';
 
 @Injectable()
 export class UserService {
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
+    private supabaseService: SupabaseService,
   ) {}
 
   async login(email: string, password: string) {
@@ -266,8 +269,15 @@ export class UserService {
       throw new BadRequestException('No file provided');
     }
 
-    // Mock: In production, upload to cloud storage (S3, Cloudinary, etc.)
-    const fileUrl = `/uploads/${file.filename}`;
+    // Generate unique filename
+    const randomName = Array(32)
+      .fill(null)
+      .map(() => Math.round(Math.random() * 16).toString(16))
+      .join('');
+    const fileName = `${userId}/${randomName}${extname(file.originalname)}`;
+
+    // Upload to Supabase Storage
+    const fileUrl = await this.supabaseService.uploadFile(file, fileName);
 
     const document = await this.prisma.document.create({
       data: {
